@@ -10,188 +10,193 @@ let badEnds = ["Ev", "Ei", "Em", "Im", "If", "Pb", "Ia", "Id", "Ii", "Ib", "Ih",
 
 let hidChars = ["_Hidl_", "_hidl_", "hidl_", "Hidl_", "_hidl", "_Hidl", ".hidl.", ".Hidl.", ".hidl", ".Hidl", "hidl.", "Hidl.", "hidl", "Hidl"];
 
-
 function demangle(mangledName) {
-    function clearArray(array) { while (array.length > 0) { array.pop(); } }
-	function isMangled(str) { return str.startsWith("_Z"); }
-	function isNumber(ch) { return nums.includes(ch); }
-	function isAlpha(ch) { return alpha.includes(ch); }
+    function clearArray(array) {
+        while (array.length > 0) {
+            array.pop();
+        }
+    }
+
+    function isMangled(str) { return str.startsWith("_Z"); }
+    function isNumber(ch) { return nums.includes(ch); }
+    function isAlpha(ch) {  return alpha.includes(ch);  }
     //function hasSpecial(str) { return specials.includes(str.toLowerCase()); }
 
     function hasSpecial(str) {
         let low = str.toLowerCase();
-        for(let s of specials) {
-            if(low.endsWith(s)) {
+        for (let s of specials) {
+            if (low.endsWith(s)) {
                 return true;
             }
-        } 
+        }
         return false;
     }
-	
-	function isLower(ch) { return ch === ch.toLowerCase() && ch !== ch.toUpperCase(); }
-	function isUpper(ch) { return !isLower(ch);  }
-	function isBadChar(ch) { return ch === "_" || isNumber(ch); }
-	function pushCurrent(part, pts) {
-	    let begCaps = 0;
-	    if(part !== "" && part.length > 1) {
-	        for(let i = 0; i < part.length; i++) {
-	            let ch = part.charAt(i);
-	            if(isUpper(ch)) {
-	                begCaps++;
-	            } else {
+
+    function isLower(ch) {  return ch === ch.toLowerCase() && ch !== ch.toUpperCase(); }
+    function isUpper(ch) {  return !isLower(ch);   }
+    function isBadChar(ch) { return ch === "_" || isNumber(ch); }
+
+    function pushCurrent(part, pts) {
+        let begCaps = 0;
+        if (part !== "" && part.length > 1) {
+            for (let i = 0; i < part.length; i++) {
+                let ch = part.charAt(i);
+                if (isUpper(ch)) {
+                    begCaps++;
+                } else {
                     break;
-	            }
-	        }
-	        
-	        if(begCaps > 2)
-	            return;
-	            
-	        //check between 3 & 4 we dont want like "IPb" "IPbc"
-	        if(begCaps === 2 && (part.length === 3 || part.length === 4))
-	            return;
-	            
-	        pts.push(part);
-	    }
-	}
-	
-	function pushToParts(part, pts) {
-	    if(pts.length === 0) {
-	        if(part !== "" && part.length > 4) {
+                }
+            }
+
+            if (begCaps > 2)
+                return;
+
+            //check between 3 & 4 we dont want like "IPb" "IPbc"
+            if (begCaps === 2 && (part.length === 3 || part.length === 4))
+                return;
+
+            pts.push(part);
+        }
+    }
+
+    function pushToParts(part, pts) {
+        if (pts.length === 0) {
+            if (part !== "" && part.length > 4) {
                 //for beg part we want to try to exceed 4 Chars ?
-	            pts.push(part);
+                pts.push(part);
                 return hasSpecial(part);
-	        }
-	    } else {
-	        if(part !== "" && part.length > 1) {
-	            if(part.length === 2) {
-	                let chr = part.charAt(0);
-	                if(isUpper(chr)) {
-	                    let last = pts.pop();
-	                    pts.push(last + part);
-	                    return;
-	                }
-	            } 
-	            pts.push(part);
+            }
+        } else {
+            if (part !== "" && part.length > 1) {
+                if (part.length === 2) {
+                    let chr = part.charAt(0);
+                    if (isUpper(chr)) {
+                        let last = pts.pop();
+                        pts.push(last + part);
+                        return;
+                    }
+                }
+                pts.push(part);
                 return hasSpecial(part);
-	        } 
-	    }
+            }
+        }
 
         return false;
-	}
-	
-	if(!isMangled(mangledName)) 
-		return mangledName;
-		
-	mangledName = mangledName.replace("_Z", "");
-	
-	let parts = [  ];
-	//If Capital expect to follow with non caps if not its part of the mangling
-	//Find Capitals follow
-	//if all lower case that can be possible
-	
-	let current = "";
-	let currentParts = [ ];
-	let expectLower = false;
+    }
 
-	let lastWasCap = false;
+    if (!isMangled(mangledName))
+        return mangledName;
+
+    mangledName = mangledName.replace("_Z", "");
+
+    let parts = [];
+    //If Capital expect to follow with non caps if not its part of the mangling
+    //Find Capitals follow
+    //if all lower case that can be possible
+
+    let current = "";
+    let currentParts = [];
+    let expectLower = false;
+
+    let lastWasCap = false;
 
     let lastWasSpecial = false;
     let lastEndedInNum = false;
     let extNums = "";
 
-	for(let i = 0; i < mangledName.length; i++) {
-		//If caps next couple chars should follow as lower Case
-		let ch = mangledName.charAt(i);
-		
-		if(isAlpha(ch)) {
-            if(lastEndedInNum && current === "" && parts.length > 0) {
+    for (let i = 0; i < mangledName.length; i++) {
+        //If caps next couple chars should follow as lower Case
+        let ch = mangledName.charAt(i);
+
+        if (isAlpha(ch)) {
+            if (lastEndedInNum && current === "" && parts.length > 0) {
                 let last = parts.pop();
                 current = last;
                 lastEndedInNum = false;
             }
-            
-			if(isUpper(ch)) {
-				if(!expectLower)
-					expectLower = true;
-				
-				if(current !== "") {
-					if(!lastWasCap) {
-						//check if last was upper encase "IBinder" "IB"
-						//currentParts.push(current);
-						pushCurrent(current, currentParts);
-						current = "";
-					}
-				}
 
-				current = current + ch;
-				if(!lastWasCap) 
-					lastWasCap = true;
-				
-			} else {
-				if(lastWasCap)
-					lastWasCap = false;
-				
-				if(expectLower) 
-					expectLower = false;
-				
-				current = current + ch;
-			}
-		} else {
-			if(isBadChar(ch)) {
-                if(lastEndedInNum)
+            if (isUpper(ch)) {
+                if (!expectLower)
+                    expectLower = true;
+
+                if (current !== "") {
+                    if (!lastWasCap) {
+                        //check if last was upper encase "IBinder" "IB"
+                        //currentParts.push(current);
+                        pushCurrent(current, currentParts);
+                        current = "";
+                    }
+                }
+
+                current = current + ch;
+                if (!lastWasCap)
+                    lastWasCap = true;
+
+            } else {
+                if (lastWasCap)
+                    lastWasCap = false;
+
+                if (expectLower)
+                    expectLower = false;
+
+                current = current + ch;
+            }
+        } else {
+            if (isBadChar(ch)) {
+                if (lastEndedInNum)
                     lastEndedInNum = false;
-                
-				if(expectLower) {
-					//ignore current part as it was like "BpBinderEL1" (we want to ignore "EL")
-					//We should at this point append parts to the main part
-					//It should look like parts = [ "Bp", "Binder" ] not including "EL"
-					expectLower = false;
-					if(current !== "") 
-						current = "";
-					
-					if(currentParts.length > 0) {
-						let pt = currentParts.join('');
-						clearArray(currentParts);
-						if(pt !== "") {
-						    pushToParts(pt, parts);
-						    //parts.push(pt);
-						}
-					}
-				} else {
-                    if(ch === "_" && current !== "") {
+
+                if (expectLower) {
+                    //ignore current part as it was like "BpBinderEL1" (we want to ignore "EL")
+                    //We should at this point append parts to the main part
+                    //It should look like parts = [ "Bp", "Binder" ] not including "EL"
+                    expectLower = false;
+                    if (current !== "")
+                        current = "";
+
+                    if (currentParts.length > 0) {
+                        let pt = currentParts.join('');
+                        clearArray(currentParts);
+                        if (pt !== "") {
+                            pushToParts(pt, parts);
+                            //parts.push(pt);
+                        }
+                    }
+                } else {
+                    if (ch === "_" && current !== "") {
                         let lastChar = current.charAt(current.length - 1);
-                        if(isAlpha(lastChar) && isLower(lastChar)) {
-                            if(mangledName.length - 1 > i) {
+                        if (isAlpha(lastChar) && isLower(lastChar)) {
+                            if (mangledName.length - 1 > i) {
                                 let nextChar = mangledName.charAt(i + 1);
-                                if(isAlpha(nextChar) && isLower(nextChar)) {
+                                if (isAlpha(nextChar) && isLower(nextChar)) {
                                     current = current + "_";
                                     continue;
                                 }
                             }
                         }
                     }
-                    
-					//It dosnt expect a lower but had a Number or Underscore
-					//BpBinder12_ or BpBinder_44
-					if(current !== "") {
-						//currentParts.push(current);
-						pushCurrent(current, currentParts);
-						current = "";
+
+                    //It dosnt expect a lower but had a Number or Underscore
+                    //BpBinder12_ or BpBinder_44
+                    if (current !== "") {
+                        //currentParts.push(current);
+                        pushCurrent(current, currentParts);
+                        current = "";
                         lastWasSpecial = false;
-					}
+                    }
 
-					if(currentParts.length > 0) {
-						let pt = currentParts.join('');
-						clearArray(currentParts);
-						if(pt !== "") {
-						    lastWasSpecial = pushToParts(pt, parts);
-						    //parts.push(pt);
-						}
-					}
+                    if (currentParts.length > 0) {
+                        let pt = currentParts.join('');
+                        clearArray(currentParts);
+                        if (pt !== "") {
+                            lastWasSpecial = pushToParts(pt, parts);
+                            //parts.push(pt);
+                        }
+                    }
 
-                    if(lastWasSpecial && isNumber(ch)) {
+                    if (lastWasSpecial && isNumber(ch)) {
                         extNums = extNums + ch;
-                        if(bts.includes(extNums)) {
+                        if (bts.includes(extNums)) {
                             let last = parts.pop();
                             parts.push(last + extNums);
                             extNums = "";
@@ -199,93 +204,93 @@ function demangle(mangledName) {
                             lastEndedInNum = true;
                         }
                     }
-				}
-			}
-		}
-	}
-	
-	if(!lastWasCap && current.length !== "") {
-		//currentParts.push(current);
-		pushCurrent(current, currentParts);
-		current = "";
-	}
-	
-	if(currentParts.length > 0) {
-		let pt = currentParts.join('');
-		clearArray(currentParts);
-		if(pt !== "") {
-		    pushToParts(pt, parts);
-		}
-	}
+                }
+            }
+        }
+    }
 
-    let finalParts = [ ];
-    for(let p of parts) {
-        if(p.length < 6) {
+    if (!lastWasCap && current.length !== "") {
+        //currentParts.push(current);
+        pushCurrent(current, currentParts);
+        current = "";
+    }
+
+    if (currentParts.length > 0) {
+        let pt = currentParts.join('');
+        clearArray(currentParts);
+        if (pt !== "") {
+            pushToParts(pt, parts);
+        }
+    }
+
+    let finalParts = [];
+    for (let p of parts) {
+        if (p.length < 6) {
             let fIx = -1;
-            for(let b of badEnds) {
+            for (let b of badEnds) {
                 let ix = p.indexOf(b);
-                if(ix > -1) {
-                    if(ix < fIx || fIx === -1) 
+                if (ix > -1) {
+                    if (ix < fIx || fIx === -1)
                         fIx = ix;
-                    if(fIx === 0)
+                    if (fIx === 0)
                         break;
                 }
             }
 
             let tStr = p;
-            if(fIx > -1) {
-                if(fIx === 0)
+            if (fIx > -1) {
+                if (fIx === 0)
                     continue;
                 tStr = p.slice(0, fIx);
-                if(tStr.length < 2)
+                if (tStr.length < 2)
                     continue;
             }
 
             let allSameChars = true;
             let c = tStr.charAt(0);
-            for(let ic = 1; ic < tStr.length; ic++) {
+            for (let ic = 1; ic < tStr.length; ic++) {
                 let chr = tStr.charAt(ic);
-                if(chr !== c) {
+                if (chr !== c) {
                     allSameChars = false;
                     break;
                 }
             }
 
-            if(allSameChars)
+            if (allSameChars)
                 continue;
 
             finalParts.push(tStr);
         } else {
             let fIx = 0;
-            for(let b of badEnds) {
+            for (let b of badEnds) {
                 let ix = p.indexOf(b);
-                if(ix > 2) {
+                if (ix > 2) {
                     //so it was found
                     //now who has the "lowest" index
-                    if(fIx === 0) {
+                    if (fIx === 0) {
                         fIx = ix;
-                    } else if(fIx > ix) {
+                    } else if (fIx > ix) {
                         fIx = ix;
-                        if(ix === 3) 
+                        if (ix === 3)
                             break;
                     }
                 }
             }
-            if(fIx > 2)  finalParts.push(p.slice(0, fIx));
+            if (fIx > 2) finalParts.push(p.slice(0, fIx));
             else finalParts.push(p);
         }
     }
-    
-	if(finalParts.length > 0)
-		return finalParts.join('.')
+
+    if (finalParts.length > 0)
+        return finalParts.join('.')
             .replaceAll("Hidl", "")
             .replaceAll("hidl", "")
             .replaceAll("..", ".")
             .replaceAll("__", "_")
             .replaceAll("._", ".")
             .replaceAll("_.", ".");
-	
-	return mangledName;
+
+    return mangledName;
 }
 
 //Below is Example code it is not needed you can delete
